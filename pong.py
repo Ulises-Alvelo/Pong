@@ -92,6 +92,108 @@ class PowerUp:
 
 # Main function declaration
 
+def pantalla_inicio():
+    #inicio creacion
+    pygame.init()  # Arranca todos los motores internos de Pygame
+    pantalla = pygame.display.set_mode((WIDTH, HEIGHT))  #Crea la ventana con las medidas configuradas arriba
+    pygame.display.set_caption("Pong Online - Inicio")  #título de la ventana
+    reloj = pygame.time.Clock()  # Crea el reloj para controlar los Fotogramas Por Segundo (FPS)necesario para un limite de 60
+    
+    # Fuente gigante para el título del juego
+    fuente_titulo = pygame.font.SysFont("consolas", 72, bold=True)
+    # Fuente mediana para las opciones ("Multijugador", "Salir")
+    fuente_opciones = pygame.font.SysFont("consolas", 32, bold=True)
+
+   #menu configuracion
+    # Lista con los textos de las opciones disponibles
+    opciones = ["Multijugador - Online", "Salir"]
+    # Variable para saber qué opción está resaltada. Empieza en 0 ("Multijugador - Online")
+    seleccion_actual = 0  
+
+    corriendo_menu = True  # bucle del menu 
+    
+    #bucle menu princiapl
+    while corriendo_menu:
+        reloj.tick(FPS)  # Hace que el menú corra a la misma velocidad que el juego (ej: 60 FPS)
+        
+        #CONTROL DE EVENTOS
+        for evento in pygame.event.get(): #el pygame.ev... revisa las acciones y vacia las acciones pendientes mediante una cola para seguir con la otra accion
+            # Si el usuario hace clic en la "X" roja de la ventana para cerrarla
+            if evento.type == pygame.QUIT:
+                pygame.quit()  # Apaga Pygame
+                sys.exit()     # Cierra el programa por completo
+                
+            #asignacion de teclas
+            if evento.type == pygame.KEYDOWN:
+                # si presiona la flecha arriba o la tecla "w"
+                if evento.key == pygame.K_UP or evento.key == pygame.K_w:
+                    # resta 1 a la selección. El "% len(opciones)" hace que si subes estando en el primero, salte al último.
+                    seleccion_actual = (seleccion_actual - 1) % len(opciones)
+                
+                # si presiona la flecha abajo o la tecla "s"
+                elif evento.key == pygame.K_DOWN or evento.key == pygame.K_s:
+                    # suma 1 a la selección. Si bajas estando en el último, salta al primero.
+                    seleccion_actual = (seleccion_actual + 1) % len(opciones)
+                
+                # si presiona la tecla ENTER (RETURN)
+                elif evento.key == pygame.K_RETURN:
+                    # Verifica cuál es el número de la opción seleccionada actualmente
+                    if seleccion_actual == 0:  # Opción 0 es "Multijugador - Online"
+                        return  # Rompe esta función, saliendo del menú para que inicie main() donde se ubica el juego 
+                    elif seleccion_actual == 1:  # Opción 1 es "Salir"
+                        pygame.quit()  # Apaga Pygame
+                        sys.exit()     # Cierra el programa por completo
+
+        #diseño de panatalla
+        #cambia todo el fondo de la ventana de un color azul oscuro
+        pantalla.fill((10, 15, 25)) 
+        # Renderiza el texto gris que usaremos como sombra
+        titulo_sombra = fuente_titulo.render("PONG ONLINE", True, (100, 100, 100))
+        # Renderiza el texto blanco que irá por encima
+        titulo_principal = fuente_titulo.render("PONG ONLINE", True, (255, 255, 255)) 
+        
+        # pega la sombra corrida 3 píxeles hacia la derecha y abajo (+3)
+        pantalla.blit(titulo_sombra, (WIDTH // 2 - titulo_principal.get_width() // 2 + 3, HEIGHT // 4 + 3))#blit copia y pega sobre la otra
+        #width // es a la mitad de la pantalla - titulo...get_width //2 es para restarle la mitad del ancho del titulo para acomodarlo y el +3 para dibujar bien la sombra y no se tape todo
+        #heigt // 4 para ubicarlo en la parte superior diviendo la altura en 4 partes dejandola en la parte superior y +3 para la sombra 
+        pantalla.blit(titulo_principal, (WIDTH // 2 - titulo_principal.get_width() // 2, HEIGHT // 4))#aca el blit pega sobre la sombra para el diseño
+        #width // es a la mitad de la pantalla - titulo...get_width //2 es para restarle la mitad del ancho del titulo para acomodarlo sin +3 para no tapar la sombra
+        #heigt // 4 para ubicarlo en la parte superior diviendo la altura en 4 partes dejandola en la parte superior y sin +3 para no tapar la sombra
+        espacio_entre_opciones = 60  # Distancia en píxeles entre cada opción hacia abajo
+        inicio_y = HEIGHT // 2       # Altura en la pantalla donde empezará a dibujarse la primera opción
+
+        # Recorremos la lista. 'indice' es el número (0 o 1) y 'texto_opcion' es el texto real
+        for indice, texto_opcion in enumerate(opciones):
+            
+            # Si el índice que estamos dibujando coincide con el que el usuario tiene seleccionado...
+            if indice == seleccion_actual:
+                # Le agregamos las flechitas a los costados
+                texto_a_mostrar = f"> {texto_opcion} <"
+                # Le asignamos el color blanco 
+                color_texto = (255, 255, 255) 
+            
+            # Si NO es el que el usuario tiene seleccionado...
+            else:
+                # Dejamos el texto tal cual (sin flechas)
+                texto_a_mostrar = texto_opcion
+                # Le asignamos un gris apagado para que quede en segundo plano
+                color_texto = (100, 120, 140) 
+
+            # Renderizamos el texto final de la opción con el color que le tocó
+            superficie_texto = fuente_opciones.render(texto_a_mostrar, True, color_texto)
+            
+            # Calculamos su posición X para que quede centrado
+            pos_x = WIDTH // 2 - superficie_texto.get_width() // 2
+            # Calculamos su posición Y multiplicando su índice por el espacio, para que queden uno debajo del otro
+            pos_y = inicio_y + (indice * espacio_entre_opciones)#para delimitar que las opciones cumplan con el es espacio de 60 pixeles = 0 * 60 = 0 inicio- 1 * 60 = 1 espacio
+            
+            # Pegamos el texto de esta opción en la pantalla
+            pantalla.blit(superficie_texto, (pos_x, pos_y))# ponemos en pantalla las opciones con los espacios definidos con el calculo anterior
+
+        #Muestra todo lo que acabamos de dibujar al usuario actualizando el monitor
+        pygame.display.flip()
+# Main function declaration
+
 def limitar_vel(pelota):
     pelota.vel_x = max(-VEL_PELOTA_MAX, min(VEL_PELOTA_MAX, pelota.vel_x))
     pelota.vel_y = max(-VEL_PELOTA_MAX, min(VEL_PELOTA_MAX, pelota.vel_y))
