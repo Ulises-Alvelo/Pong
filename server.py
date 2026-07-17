@@ -10,17 +10,18 @@ server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind((HOST, PORT))
 server.listen(2)
 
+#Diccionario de clientes que se usa de manera local para cada vez que se necesite llamar a uno
 clientes = []
-
 
 def manejar_clientes(conn, addr):
     print(f"Usuario {addr} conectado")
-
+#Bucle que mantiene la conexion hasta que el jugador abandone el juego.
     while True:
         try:
             datos = conn.recv(2048)
             if not datos:
                 break
+            #Recorre el diccionario local de clientes enviandole el mensaje al rival
             for c in clientes:
                 if c != conn:
                     c.sendall(datos)
