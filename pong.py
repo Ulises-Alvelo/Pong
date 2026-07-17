@@ -61,7 +61,7 @@ class Pelota:
 # Main function declaration
 
 def pantalla_inicio():
-    #inicio
+    #inicio creacion
     pygame.init()  # Arranca todos los motores internos de Pygame
     pantalla = pygame.display.set_mode((WIDTH, HEIGHT))  #Crea la ventana con las medidas configuradas arriba
     pygame.display.set_caption("Pong Online - Inicio")  #título de la ventana
