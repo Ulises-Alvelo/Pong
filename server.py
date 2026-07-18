@@ -3,8 +3,9 @@ import threading
 import json
 
 HOST = '0.0.0.0'
-PORT = 5555
-
+PORT = 5040
+# 5040 
+# 4441
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind((HOST, PORT))

@@ -4,7 +4,7 @@ import json
 
 
 class RedCliente:
-    def __init__(self, server_ip='127.0.0.1', puerto=5555):
+    def __init__(self, server_ip='127.0.0.1', puerto=5040):
         self.clientes = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_ip = server_ip
         self.puerto = puerto
