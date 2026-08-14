@@ -3,7 +3,7 @@ import threading
 import json
 
 HOST = '0.0.0.0'
-PORT = 5040
+PORT = 5050
 # 5040 
 # 4441
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
