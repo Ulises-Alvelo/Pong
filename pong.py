@@ -95,13 +95,16 @@ VEL_PALETA = 7
 
 RADIO_PELOTA = 9
 VEL_PELOTA_BASE = 5
-VEL_PELOTA_MAX = 15
-
+VEL_PELOTA_MAX = 10
 WHITE = (240, 240, 240)
 BLACK = (12, 12, 18)
 GRAY = (60, 60, 70)
 CYAN = (80, 220, 255)
 YELLOW = (255, 210, 60)
+
+# NUEVOS LÍMITES DE CANCHA
+LIMITE_SUPERIOR = 80
+LIMITE_INFERIOR = 560
 
 # Declaración de clases
 class Paleta:
@@ -115,16 +118,16 @@ class Paleta:
 
     def move(self, dy):
         self.y += dy
-        # Este límite evita que la paleta salga de la pantalla al moverse
-        self.y = max(0, min(HEIGHT - self.altura, self.y))
+        # Limita la paleta a los bordes blancos en lugar del borde de la ventana
+        self.y = max(LIMITE_SUPERIOR, min(LIMITE_INFERIOR - self.altura, self.y))
         
     def actualizar_altura(self, nueva_altura):
-        # Esta función permite que, al agarrar la mejora, la paleta crezca sin salirse del mapa
         if self.altura != nueva_altura:
             diferencia = nueva_altura - self.altura
-            self.y -= diferencia / 2  # Crece desde el centro
+            self.y -= diferencia / 2  
             self.altura = nueva_altura
-            self.y = max(0, min(HEIGHT - self.altura, self.y))
+            # Vuelve a aplicar los nuevos límites de la cancha si el tamaño cambia
+            self.y = max(LIMITE_SUPERIOR, min(LIMITE_INFERIOR - self.altura, self.y))
 
 class Pelota:
     def __init__(self):
@@ -160,7 +163,8 @@ class PowerUp:
         
     def generar(self, tipos_disponibles):
         self.x = random.randint(WIDTH // 4, (WIDTH * 3) // 4 - self.tamano)
-        self.y = random.randint(0, HEIGHT - self.tamano)
+        # Limita el spawn del powerup a los bordes blancos
+        self.y = random.randint(LIMITE_SUPERIOR, LIMITE_INFERIOR - self.tamano)
         self.tipo = random.choice(tipos_disponibles)
         self.rect.topleft = (self.x, self.y)
         self.activo = True
@@ -170,8 +174,10 @@ def pantalla_inicio(pantalla, reloj):
     fuente_titulo = pygame.font.SysFont("consolas", 72, bold=True)
     fuente_opciones = pygame.font.SysFont("consolas", 32, bold=True)
     
-    logo = pygame.image.load("./img/Logo.png")
-    pygame.display.set_icon(logo)
+    try:
+        logo = pygame.image.load("./img/Logo.png")
+        pygame.display.set_icon(logo)
+    except: pass
 
     opciones = ["Multijugador - Online", "Salir"]
     seleccion_actual = 0  
@@ -219,8 +225,8 @@ def pantalla_inicio(pantalla, reloj):
             pantalla.blit(superficie_texto, (pos_x, pos_y))
 
         pygame.display.flip()
+
 def adaptar_fondo(imagen, ancho_destino, alto_destino):
-    # Calcula proporciones para evitar que la imagen se estire
     ancho_img = imagen.get_width()
     alto_img = imagen.get_height()
     
@@ -228,18 +234,14 @@ def adaptar_fondo(imagen, ancho_destino, alto_destino):
     proporcion_destino = ancho_destino / alto_destino
     
     if proporcion_img > proporcion_destino:
-        # La imagen es más ancha, se ajusta al alto de la pantalla
         nuevo_alto = alto_destino
         nuevo_ancho = int(nuevo_alto * proporcion_img)
     else:
-        # La imagen es más alta, se ajusta al ancho de la pantalla
         nuevo_ancho = ancho_destino
         nuevo_alto = int(nuevo_ancho / proporcion_img)
         
-    # smoothscale suaviza los píxeles para que se vea en alta definición
     img_escalada = pygame.transform.smoothscale(imagen, (nuevo_ancho, nuevo_alto))
     
-    # Creamos un lienzo del tamaño de la pantalla y centramos la imagen recortada
     superficie_final = pygame.Surface((ancho_destino, alto_destino))
     x_offset = (ancho_destino - nuevo_ancho) // 2
     y_offset = (alto_destino - nuevo_alto) // 2
@@ -257,14 +259,12 @@ def menu_fondos(pantalla, reloj):
     for ruta in rutas_fondos:
         try:
             img = pygame.image.load(ruta).convert()
-            # AQUÍ APLICAMOS LA FUNCIÓN DE ADAPTADO
             img = adaptar_fondo(img, WIDTH, HEIGHT)
             imagenes_fondos.append(img)
         except Exception as e:
             superficie = pygame.Surface((WIDTH, HEIGHT))
             superficie.fill(BLACK)
             imagenes_fondos.append(superficie)
-            print(f"Error cargando {ruta}: {e}")
             
     seleccion_actual = 0
     ejecutando = True
@@ -381,8 +381,10 @@ def main():
     pantalla = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Pong Online")
     
-    logo = pygame.image.load("./img/Logo.png")
-    pygame.display.set_icon(logo)
+    try:
+        logo = pygame.image.load("./img/Logo.png")
+        pygame.display.set_icon(logo)
+    except: pass
     
     reloj = pygame.time.Clock()
     
@@ -405,10 +407,9 @@ def main():
             img = pygame.image.load(ruta).convert_alpha()
             imagenes_powerups[mod] = pygame.transform.scale(img, tamano_icono)
         except Exception as e:
-            print(f"Advertencia: No se pudo cargar {ruta} -> {e}")
+            pass
 
     while True:
-        # Menús iniciales
         pantalla_inicio(pantalla, reloj)
         imagen_fondo = menu_fondos(pantalla, reloj)
         ip = menu_multijugador(pantalla, reloj)
@@ -429,7 +430,6 @@ def main():
             continue
             
         be_host = (red.player_num == 1)
-        print(f"Eres el jugador {red.player_num} ({'host simulates the ball' if be_host else 'invitado'})")
         pygame.display.set_caption(f"Pong Online - Jugador {red.player_num}")
         
         fuente_puntaje = pygame.font.SysFont("consolas", 48)
@@ -520,16 +520,16 @@ def main():
                 if be_host:
                     y_rival = datos_recibidos.get("jugador_y")
                     if y_rival is not None:
-                        paleta_2.y = max(0, min(HEIGHT - paleta_2.altura, y_rival))
+                        paleta_2.y = max(LIMITE_SUPERIOR, min(LIMITE_INFERIOR - paleta_2.altura, y_rival))
 
                     pelota.move()
                     
-                    # 1. Rebote en los bordes Superior/Inferior corrigiendo la posición de la pelota
-                    if pelota.y - pelota.radio <= 0:
-                        pelota.y = pelota.radio
+                    # Rebote contra los nuevos límites de la cancha
+                    if pelota.y - pelota.radio <= LIMITE_SUPERIOR:
+                        pelota.y = LIMITE_SUPERIOR + pelota.radio
                         pelota.vel_y *= -1
-                    elif pelota.y + pelota.radio >= HEIGHT:
-                        pelota.y = HEIGHT - pelota.radio
+                    elif pelota.y + pelota.radio >= LIMITE_INFERIOR:
+                        pelota.y = LIMITE_INFERIOR - pelota.radio
                         pelota.vel_y *= -1
 
                     if pelota.vel_x < 0 and pelota.rect().colliderect(paleta_1.rect()):
@@ -539,7 +539,6 @@ def main():
                         rebotar_en_paleta(pelota, paleta_2)
                         ultimo_golpe = 2
 
-                    # 2. Puntos exactos cuando la pelota cruza la pared COMPLETA por la izquierda o derecha
                     if pelota.x + pelota.radio < 0:
                         puntaje_2 += 1
                         pelota.reset(hacia_derecha=True)
@@ -551,7 +550,7 @@ def main():
                         paleta_1.actualizar_altura(HEIGHT_PALETA)
                         paleta_2.actualizar_altura(HEIGHT_PALETA)
 
-                    # --- LÓGICA DE POWER-UPS (Solo Host) ---
+                    # --- LÓGICA DE POWER-UPS ---
                     modificador_tocado = None
                     if not powerup_en_cancha.activo:
                         ticks_spawn -= 1
@@ -572,7 +571,6 @@ def main():
                             elif modificador_tocado == "bola_grande":
                                 pelota.radio = 22
                             elif modificador_tocado == "paleta_larga":
-                                # 3. Se implementó la actualización inteligente para que no rompa los límites
                                 if ultimo_golpe == 1:
                                     paleta_1.actualizar_altura(180)
                                 else:
@@ -598,12 +596,10 @@ def main():
                 else:
                     red.enviar_datos({"jugador_y": paleta_2.y})
                     
-                    # Actualizamos las alturas primero (Para Guest)
                     paleta_1.actualizar_altura(datos_recibidos.get("p1_altura", HEIGHT_PALETA))
                     paleta_2.actualizar_altura(datos_recibidos.get("p2_altura", HEIGHT_PALETA))
                     pelota.radio = datos_recibidos.get("pelota_radio", RADIO_PELOTA)
                     
-                    # Y luego sobreescribimos con las coordenadas exactas validadas por el Host
                     paleta_1.y = datos_recibidos.get("jugador1_y", paleta_1.y)
                     pelota.x = datos_recibidos.get("pelota_x", pelota.x)
                     pelota.y = datos_recibidos.get("pelota_y", pelota.y)
@@ -639,13 +635,20 @@ def main():
                 else:
                     red.enviar_datos({"jugador_y": paleta_2.y})
 
-            # Rendering Gráfico
+            # Rendering Gráfico Modificado
             if imagen_fondo:
                 pantalla.blit(imagen_fondo, (0, 0))
             else:
                 pantalla.fill(BLACK)
                 
-            pygame.draw.line(pantalla, GRAY, (WIDTH // 2, 0), (WIDTH // 2, HEIGHT), 2)
+            # --- DIBUJADO DE LÍMITES BLANCOS ---
+            pygame.draw.rect(pantalla, WHITE, (0, LIMITE_SUPERIOR - 5, WIDTH, 5))
+            pygame.draw.rect(pantalla, WHITE, (0, LIMITE_INFERIOR, WIDTH, 5))
+            
+            # --- DIBUJADO DE LA LÍNEA CENTRAL ---
+            # Ahora la línea central solo abarca entre las dos líneas blancas
+            pygame.draw.line(pantalla, WHITE, (WIDTH // 2, LIMITE_SUPERIOR), (WIDTH // 2, LIMITE_INFERIOR), 2)
+            
             pygame.draw.rect(pantalla, CYAN, paleta_1.rect())
             pygame.draw.rect(pantalla, YELLOW, paleta_2.rect())
             pygame.draw.circle(pantalla, WHITE, (int(pelota.x), int(pelota.y)), int(pelota.radio))
