@@ -106,6 +106,10 @@ YELLOW = (255, 210, 60)
 LIMITE_SUPERIOR = 80
 LIMITE_INFERIOR = 560
 
+# IA
+VEL_IA = 5.2
+
+
 # Declaración de clases
 class Paleta:
     def __init__(self, x):
@@ -170,6 +174,24 @@ class PowerUp:
         self.activo = True
 
 # Declaración de funciones
+def actualizar_ia(paleta, pelota):
+    centro_paleta = paleta.y + paleta.altura / 2
+    centro_pelota = pelota.y
+
+    if pelota.vel_x > 0:
+        if abs(centro_paleta - centro_pelota) > 12:
+            if centro_paleta < centro_pelota:
+                paleta.move(VEL_IA)
+            else:
+                paleta.move(-VEL_IA)
+    else:
+        centro_cancha = (LIMITE_SUPERIOR + LIMITE_INFERIOR) / 2
+        if abs(centro_paleta - centro_cancha) > 30:
+            if centro_paleta < centro_cancha:
+                paleta.move(VEL_IA * 0.5)
+            else:
+                paleta.move(-VEL_IA * 0.5)
+
 def pantalla_inicio(pantalla, reloj):
     fuente_titulo = pygame.font.SysFont("consolas", 72, bold=True)
     fuente_opciones = pygame.font.SysFont("consolas", 32, bold=True)
@@ -179,7 +201,7 @@ def pantalla_inicio(pantalla, reloj):
         pygame.display.set_icon(logo)
     except: pass
 
-    opciones = ["Multijugador - Online", "Salir"]
+    opciones = ["Un jugador (IA)", "Multijugador - Online", "Salir"]
     seleccion_actual = 0  
     corriendo_menu = True
     
@@ -197,8 +219,10 @@ def pantalla_inicio(pantalla, reloj):
                     seleccion_actual = (seleccion_actual + 1) % len(opciones)
                 elif evento.key == pygame.K_RETURN:
                     if seleccion_actual == 0:
-                        return
+                        return "singleplayer"
                     elif seleccion_actual == 1:
+                        return "multiplayer"
+                    elif seleccion_actual == 2:
                         pygame.quit()
                         sys.exit()
 
@@ -410,28 +434,35 @@ def main():
             pass
 
     while True:
-        pantalla_inicio(pantalla, reloj)
+        modo_juego = pantalla_inicio(pantalla, reloj)
         imagen_fondo = menu_fondos(pantalla, reloj)
-        ip = menu_multijugador(pantalla, reloj)
         
-        red = RedCliente(server_ip=ip)
-        red.conectar()
+        red = None
+        es_modo_ia = (modo_juego == "singleplayer")
+
+        if not es_modo_ia:
+            ip = menu_multijugador(pantalla, reloj)
+            red = RedCliente(server_ip=ip)
+            red.conectar()
         
-        if not red.conectado or red.player_num is None:
-            fuente_error = pygame.font.SysFont("consolas", 20)
-            pantalla.fill(BLACK)
-            txt_err1 = fuente_error.render("ERROR: No se pudo conectar al servidor.", True, (255, 100, 100))
-            txt_err2 = fuente_error.render("Asegurate de que server.py este corriendo.", True, WHITE)
-            pantalla.blit(txt_err1, (WIDTH // 2 - txt_err1.get_width() // 2, HEIGHT // 2 - 20))
-            pantalla.blit(txt_err2, (WIDTH // 2 - txt_err2.get_width() // 2, HEIGHT // 2 + 10))
-            pygame.display.flip()
+            if not red.conectado or red.player_num is None:
+                    fuente_error = pygame.font.SysFont("consolas", 20)
+                    pantalla.fill(BLACK)
+                    txt_err1 = fuente_error.render("ERROR: No se pudo conectar al servidor.", True, (255, 100, 100))
+                    txt_err2 = fuente_error.render("Asegurate de que server.py este corriendo.", True, WHITE)
+                    pantalla.blit(txt_err1, (WIDTH // 2 - txt_err1.get_width() // 2, HEIGHT // 2 - 20))
+                    pantalla.blit(txt_err2, (WIDTH // 2 - txt_err2.get_width() // 2, HEIGHT // 2 + 10))
+                    pygame.display.flip()
+                    
+                    pygame.time.wait(3000)
+                    continue
             
-            pygame.time.wait(3000)
-            continue
-            
-        be_host = (red.player_num == 1)
-        pygame.display.set_caption(f"Pong Online - Jugador {red.player_num}")
-        
+            be_host = (red.player_num == 1)
+            pygame.display.set_caption(f"Pong Online - Jugador {red.player_num}")
+        else:
+            be_host = True
+            pygame.display.set_caption("Pong - vs IA")
+
         fuente_puntaje = pygame.font.SysFont("consolas", 48)
         fuente_chica = pygame.font.SysFont("consolas", 18)
         
@@ -484,14 +515,15 @@ def main():
                                 en_cuenta_reanudar = True
                                 ticks_contador = 180
                             elif indice_seleccionado == 1:
-                                red.conectado = False
-                                try:
-                                    red.clientes.close()
-                                except:
-                                    pass
+                                if red:
+                                    red.conectado = False
+                                    try:
+                                        red.clientes.close()
+                                    except Exception:
+                                        pass
                                 corriendo = False
                                 
-            if not red.conectado:
+            if red and not red.conectado:
                 corriendo = False
                 
             if en_cuenta_pausa:
@@ -514,13 +546,16 @@ def main():
                 if teclas[pygame.K_DOWN] or teclas[pygame.K_s]:
                     dy = VEL_PALETA
                 mi_paleta.move(dy)
+                if es_modo_ia:
+                    actualizar_ia(paleta_2, pelota)
                 
-                datos_recibidos = red.datos_recibidos
+                datos_recibidos = red.datos_recibidos if red else {}
                 
                 if be_host:
-                    y_rival = datos_recibidos.get("jugador_y")
-                    if y_rival is not None:
-                        paleta_2.y = max(LIMITE_SUPERIOR, min(LIMITE_INFERIOR - paleta_2.altura, y_rival))
+                    if not es_modo_ia and red:
+                        y_rival = datos_recibidos.get("jugador_y")
+                        if y_rival is not None:
+                            paleta_2.y = max(LIMITE_SUPERIOR, min(LIMITE_INFERIOR - paleta_2.altura, y_rival))
 
                     pelota.move()
                     
@@ -592,7 +627,8 @@ def main():
                         "p2_altura": paleta_2.altura,
                         "pelota_radio": pelota.radio
                     }
-                    red.enviar_datos(estado)
+                    if not es_modo_ia and red:
+                        red.enviar_datos(estado)
                 else:
                     red.enviar_datos({"jugador_y": paleta_2.y})
                     
@@ -618,22 +654,23 @@ def main():
                     active_modifier = modificador_tocado
                     ticks_modificador = FPS
             else:
-                if be_host:
-                    red.enviar_datos({
-                        "jugador1_y": paleta_1.y, "jugador2_y": paleta_2.y,
-                        "pelota_x": pelota.x, "pelota_y": pelota.y,
-                        "puntaje1": puntaje_1, "puntaje2": puntaje_2,
-                        "modificador_tocado": None,
-                        "pw_activo": powerup_en_cancha.activo,
-                        "pw_x": powerup_en_cancha.x,
-                        "pw_y": powerup_en_cancha.y,
-                        "pw_tipo": powerup_en_cancha.tipo,
-                        "p1_altura": paleta_1.altura,
-                        "p2_altura": paleta_2.altura,
-                        "pelota_radio": pelota.radio
-                    })
-                else:
-                    red.enviar_datos({"jugador_y": paleta_2.y})
+                if not es_modo_ia and red:
+                    if be_host:
+                        red.enviar_datos({
+                            "jugador1_y": paleta_1.y, "jugador2_y": paleta_2.y,
+                            "pelota_x": pelota.x, "pelota_y": pelota.y,
+                            "puntaje1": puntaje_1, "puntaje2": puntaje_2,
+                            "modificador_tocado": None,
+                            "pw_activo": powerup_en_cancha.activo,
+                            "pw_x": powerup_en_cancha.x,
+                            "pw_y": powerup_en_cancha.y,
+                            "pw_tipo": powerup_en_cancha.tipo,
+                            "p1_altura": paleta_1.altura,
+                            "p2_altura": paleta_2.altura,
+                            "pelota_radio": pelota.radio
+                        })
+                    else:
+                        red.enviar_datos({"jugador_y": paleta_2.y})
 
             # Rendering Gráfico Modificado
             if imagen_fondo:
@@ -659,7 +696,7 @@ def main():
             texto_puntaje = fuente_puntaje.render(f"{puntaje_1}   {puntaje_2}", True, WHITE)
             pantalla.blit(texto_puntaje, (WIDTH // 2 - texto_puntaje.get_width() // 2, 20))
             
-            estado_conexion = "Conectado" if red.conectado else "Desconectado"
+            estado_conexion = "vs IA" if es_modo_ia else ("Conectado" if red and red.conectado else "Desconectado")
             texto_estado = fuente_chica.render(estado_conexion, True, WHITE)
             pantalla.blit(texto_estado, (10, 10))
             
