@@ -213,6 +213,8 @@ def pantalla_inicio(pantalla, reloj):
                 sys.exit()
                 
             if evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_F11:
+                    pygame.display.toggle_fullscreen()
                 if evento.key == pygame.K_UP or evento.key == pygame.K_w:
                     seleccion_actual = (seleccion_actual - 1) % len(opciones)
                 elif evento.key == pygame.K_DOWN or evento.key == pygame.K_s:
@@ -500,6 +502,8 @@ def main():
                     sys.exit()
                     
                 if evento.type == pygame.KEYDOWN:
+                    if evento.key == pygame.K_F11:
+                        pygame.display.toggle_fullscreen()
                     if evento.key == pygame.K_p and not pausado and not en_cuenta_pausa and not en_cuenta_reanudar:
                         en_cuenta_pausa = True
                         ticks_contador = 180
