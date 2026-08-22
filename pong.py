@@ -420,7 +420,7 @@ def main():
     rutas_imagenes = {
         "velocidad_x2": "img/Velocidad.png",
         "3_pelotas": "img/3pelotas.png",
-        "bola_grande": "img/bola grande.jpg",
+        "bola_grande": "img/bola grande.png",
         "hielo": "img/Hielo.png",
         "lentitud": "img/Lentitud.png",
         "multiplicador": "img/multiplicador de puntos.png",
@@ -476,6 +476,10 @@ def main():
         puntaje_2 = 0
         active_modifier = None
         ticks_modificador = 0
+        ticks_modificador = 0
+        ticks_paleta1_larga = 0
+        ticks_paleta2_larga = 0
+        ultimo_golpe = 1
         ultimo_golpe = 1  
         mi_paleta = paleta_1 if be_host else paleta_2
         
@@ -562,6 +566,18 @@ def main():
                             paleta_2.y = max(LIMITE_SUPERIOR, min(LIMITE_INFERIOR - paleta_2.altura, y_rival))
 
                     pelota.move()
+                    pelota.move()
+                    
+                    # --- DESCONTAR TIEMPO DE PALETA LARGA ---
+                    if ticks_paleta1_larga > 0:
+                        ticks_paleta1_larga -= 1
+                        if ticks_paleta1_larga <= 0:
+                            paleta_1.actualizar_altura(HEIGHT_PALETA)
+                            
+                    if ticks_paleta2_larga > 0:
+                        ticks_paleta2_larga -= 1
+                        if ticks_paleta2_larga <= 0:
+                            paleta_2.actualizar_altura(HEIGHT_PALETA)
                     
                     # Rebote contra los nuevos límites de la cancha
                     if pelota.y - pelota.radio <= LIMITE_SUPERIOR:
@@ -583,11 +599,15 @@ def main():
                         pelota.reset(hacia_derecha=True)
                         paleta_1.actualizar_altura(HEIGHT_PALETA)
                         paleta_2.actualizar_altura(HEIGHT_PALETA)
+                        ticks_paleta1_larga = 0
+                        ticks_paleta2_larga = 0
                     elif pelota.x - pelota.radio > WIDTH:
                         puntaje_1 += 1
                         pelota.reset(hacia_derecha=False)
                         paleta_1.actualizar_altura(HEIGHT_PALETA)
                         paleta_2.actualizar_altura(HEIGHT_PALETA)
+                        ticks_paleta1_larga = 0
+                        ticks_paleta2_larga = 0
 
                     # --- LÓGICA DE POWER-UPS ---
                     modificador_tocado = None
@@ -612,8 +632,10 @@ def main():
                             elif modificador_tocado == "paleta_larga":
                                 if ultimo_golpe == 1:
                                     paleta_1.actualizar_altura(180)
+                                    ticks_paleta1_larga = FPS * 10
                                 else:
                                     paleta_2.actualizar_altura(180)
+                                    ticks_paleta2_larga = FPS * 10
 
                     estado = {
                         "jugador1_y": paleta_1.y,
