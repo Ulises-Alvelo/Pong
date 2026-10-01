@@ -496,7 +496,8 @@ def main():
         
         opciones_menu = ["Reanudar", "Menu Principal"]
         indice_seleccionado = 0
-        
+        solicitud_pausa = False
+        solicitud_reanudar = False
         while corriendo:
             reloj.tick(FPS)
             
@@ -511,6 +512,7 @@ def main():
                     if evento.key == pygame.K_p and not pausado and not en_cuenta_pausa and not en_cuenta_reanudar:
                         en_cuenta_pausa = True
                         ticks_contador = 180
+                        solicitud_pausa = True  
                         
                     elif pausado and not en_cuenta_reanudar:
                         if evento.key == pygame.K_UP or evento.key == pygame.K_w:
@@ -519,9 +521,15 @@ def main():
                             indice_seleccionado = (indice_seleccionado + 1) % len(opciones_menu)
                         elif evento.key == pygame.K_RETURN or evento.key == pygame.K_SPACE:
                             if indice_seleccionado == 0:
-                                pausado = False
-                                en_cuenta_reanudar = True
-                                ticks_contador = 180
+                                # pausado = False
+                                # en_cuenta_reanudar = True
+                                # ticks_contador = 180
+                                # solicitud_reanudar = True
+                                solicitud_reanudar = True
+                                if es_modo_ia:
+                                    pausado = False
+                                    en_cuenta_reanudar = True
+                                    ticks_contador = 180
                             elif indice_seleccionado == 1:
                                 if red:
                                     red.conectado = False
@@ -545,7 +553,20 @@ def main():
                 ticks_contador -= 1
                 if ticks_contador <= 0:
                     en_cuenta_reanudar = False
-                    
+                
+            datos_recibidos = red.datos_recibidos if red else {}
+            if red and datos_recibidos:
+                # Sincronización de Pausa
+                if datos_recibidos.get("pausar") and not pausado and not en_cuenta_pausa and not en_cuenta_reanudar:
+                    en_cuenta_pausa = True
+                    ticks_contador = 180
+
+                # Sincronización de Reanudación
+                if datos_recibidos.get("reanudar") and pausado and not en_cuenta_reanudar:
+                    pausado = False
+                    en_cuenta_reanudar = True
+                    ticks_contador = 180
+                # --- ACTUALIZACIÓN DE ESTADOS ---
             if not pausado and not en_cuenta_reanudar:
                 teclas = pygame.key.get_pressed()
                 dy = 0
@@ -557,15 +578,12 @@ def main():
                 if es_modo_ia:
                     actualizar_ia(paleta_2, pelota)
                 
-                datos_recibidos = red.datos_recibidos if red else {}
-                
                 if be_host:
                     if not es_modo_ia and red:
                         y_rival = datos_recibidos.get("jugador_y")
                         if y_rival is not None:
                             paleta_2.y = max(LIMITE_SUPERIOR, min(LIMITE_INFERIOR - paleta_2.altura, y_rival))
 
-                    pelota.move()
                     pelota.move()
                     
                     # --- DESCONTAR TIEMPO DE PALETA LARGA ---
@@ -651,12 +669,22 @@ def main():
                         "pw_tipo": powerup_en_cancha.tipo,
                         "p1_altura": paleta_1.altura,
                         "p2_altura": paleta_2.altura,
-                        "pelota_radio": pelota.radio
+                        "pelota_radio": pelota.radio,
+                        "pausar": solicitud_pausa,
+                        "reanudar": solicitud_reanudar
                     }
                     if not es_modo_ia and red:
                         red.enviar_datos(estado)
+                        solicitud_pausa = False
+                        solicitud_reanudar = False
                 else:
-                    red.enviar_datos({"jugador_y": paleta_2.y})
+                    red.enviar_datos({
+                        "jugador_y": paleta_2.y,
+                        "pausar": solicitud_pausa,
+                        "reanudar": solicitud_reanudar
+                        })
+                    solicitud_pausa = False
+                    solicitud_reanudar = False
                     
                     paleta_1.actualizar_altura(datos_recibidos.get("p1_altura", HEIGHT_PALETA))
                     paleta_2.actualizar_altura(datos_recibidos.get("p2_altura", HEIGHT_PALETA))
@@ -693,10 +721,23 @@ def main():
                             "pw_tipo": powerup_en_cancha.tipo,
                             "p1_altura": paleta_1.altura,
                             "p2_altura": paleta_2.altura,
-                            "pelota_radio": pelota.radio
+                            "pelota_radio": pelota.radio,
+                            "pausar": solicitud_pausa,
+                            "reanudar": solicitud_reanudar
                         })
                     else:
-                        red.enviar_datos({"jugador_y": paleta_2.y})
+                        red.enviar_datos({
+                            "jugador_y": paleta_2.y,
+                            "pausar": solicitud_pausa,
+                            "reanudar": solicitud_reanudar
+                        })
+                    if solicitud_reanudar:
+                        pausado = False
+                        en_cuenta_reanudar = True
+                        ticks_contador = 180
+
+                    solicitud_pausa = False
+                    solicitud_reanudar = False
 
             # Rendering Gráfico Modificado
             if imagen_fondo:
