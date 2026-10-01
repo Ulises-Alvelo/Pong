@@ -498,11 +498,21 @@ def main():
         indice_seleccionado = 0
         solicitud_pausa = False
         solicitud_reanudar = False
+        # Si es multijugador y somos Jugador 1, esperamos al Jugador 2
+        esperando_jugador = (not es_modo_ia and red and red.player_num == 1)
+        aviso_desconexion = False
         while corriendo:
             reloj.tick(FPS)
             
             for evento in pygame.event.get():
                 if evento.type == pygame.QUIT:
+                    if red and red.conectado:
+                        try:
+                            red.enviar_datos({"rival_desconectado": True})
+                            red.conectado = False
+                            red.clientes.close()
+                        except Exception:
+                            pass
                     pygame.quit()
                     sys.exit()
                     
@@ -531,9 +541,12 @@ def main():
                                     en_cuenta_reanudar = True
                                     ticks_contador = 180
                             elif indice_seleccionado == 1:
-                                if red:
-                                    red.conectado = False
+                                if red and red.conectado:
                                     try:
+                                        # Notificar al rival antes de cerrar
+                                        red.enviar_datos({"rival_desconectado": True})
+                                        red.conectado = False
+                                        red.clientes.shutdown(socket.SHUT_RDWR)
                                         red.clientes.close()
                                     except Exception:
                                         pass
@@ -556,6 +569,15 @@ def main():
                 
             datos_recibidos = red.datos_recibidos if red else {}
             if red and datos_recibidos:
+                # 1. El segundo jugador se unió: inicia el juego
+                if datos_recibidos.get("inicio"):
+                    esperando_jugador = False
+
+                # 2. El rival se desconectó o fue al menú
+                if datos_recibidos.get("rival_desconectado"):
+                    aviso_desconexion = True
+                    corriendo = False
+                    
                 # Sincronización de Pausa
                 if datos_recibidos.get("pausar") and not pausado and not en_cuenta_pausa and not en_cuenta_reanudar:
                     en_cuenta_pausa = True
@@ -567,7 +589,7 @@ def main():
                     en_cuenta_reanudar = True
                     ticks_contador = 180
                 # --- ACTUALIZACIÓN DE ESTADOS ---
-            if not pausado and not en_cuenta_reanudar:
+            if not pausado and not en_cuenta_reanudar and not esperando_jugador:
                 teclas = pygame.key.get_pressed()
                 dy = 0
                 if teclas[pygame.K_UP] or teclas[pygame.K_w]:
@@ -804,7 +826,33 @@ def main():
                         texto_opc = fuente_chica.render(opcion, True, WHITE)
                     pantalla.blit(texto_opc, (WIDTH // 2 - texto_opc.get_width() // 2, HEIGHT // 2 - 20 + (i * 40)))
                     
+            if esperando_jugador:
+                superficie_espera = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+                superficie_espera.fill((0, 0, 0, 190))
+                pantalla.blit(superficie_espera, (0, 0))
+                txt_esp = fuente_puntaje.render("ESPERANDO JUGADOR 2...", True, YELLOW)
+                pantalla.blit(txt_esp, (WIDTH // 2 - txt_esp.get_width() // 2, HEIGHT // 2 - 30))
+                
             pygame.display.flip()
+            
+        # Al salir de la partida, asegurar cierre de socket
+        if red and red.conectado:
+            red.conectado = False
+            try:
+                red.clientes.close()
+            except Exception:
+                pass
+
+        # Si salimos porque el rival se fue, avisar antes de volver al menú
+        if aviso_desconexion:
+            pantalla.fill(BLACK)
+            fuente_aviso = pygame.font.SysFont("consolas", 28)
+            txt1 = fuente_aviso.render("EL RIVAL HA ABANDONADO LA PARTIDA", True, (255, 100, 100))
+            txt2 = fuente_chica.render("Regresando al menu principal...", True, WHITE)
+            pantalla.blit(txt1, (WIDTH // 2 - txt1.get_width() // 2, HEIGHT // 2 - 30))
+            pantalla.blit(txt2, (WIDTH // 2 - txt2.get_width() // 2, HEIGHT // 2 + 20))
+            pygame.display.flip()
+            pygame.time.wait(2500)
 
 if __name__ == "__main__":
     main()
